@@ -1,0 +1,746 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Okay — Capture to Study Set</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,600;8..60,700&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<style>
+  :root {
+    --paper: #F5F2E9;
+    --paper-card: #FDFCF8;
+    --ink: #211F1B;
+    --ink-soft: #55524A;
+    --rule: #DCD5C2;
+    --green: #35533F;
+    --green-deep: #24392C;
+    --gold: #B8862E;
+    --wrong: #9A3B32;
+    box-sizing: border-box;
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --paper: #1B1A17; --paper-card: #242220; --ink: #F0EDE4; --ink-soft: #B7B2A4;
+      --rule: #3A362E; --green: #6FAE84; --green-deep: #8FCB9F; --gold: #D9AE5C; --wrong: #D98276;
+    }
+  }
+  :root[data-theme="dark"] {
+    --paper: #1B1A17; --paper-card: #242220; --ink: #F0EDE4; --ink-soft: #B7B2A4;
+    --rule: #3A362E; --green: #6FAE84; --green-deep: #8FCB9F; --gold: #D9AE5C; --wrong: #D98276;
+  }
+  html { scroll-padding-top: env(safe-area-inset-top, 0px); }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; background: var(--paper); color: var(--ink); font-family: 'IBM Plex Sans', sans-serif; }
+  h1, h2, h3, .display { font-family: 'Source Serif 4', serif; font-weight: 600; letter-spacing: -0.01em; }
+  .app { min-height: 100%; display: flex; flex-direction: column; }
+  header.top { display: flex; align-items: baseline; gap: 0.6rem; padding: 1.4rem 1.6rem 1rem; border-bottom: 1px solid var(--rule); flex-wrap: wrap; }
+  header.top .mark { font-family: 'Source Serif 4', serif; font-weight: 700; font-size: 1.5rem; color: var(--green); }
+  header.top .tagline { color: var(--ink-soft); font-size: 0.92rem; }
+  nav.tabs { display: flex; gap: 0.25rem; padding: 0 1.2rem; border-bottom: 1px solid var(--rule); overflow-x: auto; }
+  nav.tabs button { appearance: none; background: none; border: none; font-family: 'IBM Plex Sans', sans-serif; font-size: 0.93rem; color: var(--ink-soft); padding: 0.85rem 0.8rem 0.75rem; cursor: pointer; border-bottom: 2px solid transparent; white-space: nowrap; }
+  nav.tabs button.active { color: var(--ink); border-bottom-color: var(--green); font-weight: 500; }
+  nav.tabs button:disabled { color: var(--rule); cursor: not-allowed; }
+  main { flex: 1; width: 100%; max-width: 760px; margin: 0 auto; padding: 1.6rem; padding-bottom: 3rem; }
+  .panel { display: none; }
+  .panel.active { display: block; }
+
+  .capture-modes { display: flex; gap: 0.5rem; margin-bottom: 1.1rem; flex-wrap: wrap; }
+  .mode-btn { flex: 1; min-width: 110px; padding: 0.6rem 0.5rem; border: 1px solid var(--rule); background: var(--paper-card); color: var(--ink-soft); border-radius: 3px; cursor: pointer; font-size: 0.88rem; }
+  .mode-btn.selected { border-color: var(--green); color: var(--green-deep); background: color-mix(in srgb, var(--green) 8%, var(--paper-card)); }
+  .record-box { border: 1px solid var(--rule); border-radius: 4px; background: var(--paper-card); padding: 1.4rem; text-align: center; margin-bottom: 1rem; }
+  .rec-btn { width: 68px; height: 68px; border-radius: 50%; border: 2px solid var(--wrong); background: var(--paper-card); cursor: pointer; position: relative; margin: 0.4rem auto 0.8rem; display: block; }
+  .rec-btn::after { content: ''; position: absolute; inset: 14px; border-radius: 50%; background: var(--wrong); transition: border-radius 0.15s ease; }
+  .rec-btn.recording::after { border-radius: 6px; inset: 20px; }
+  .rec-btn.recording { animation: pulse 1.4s ease-in-out infinite; }
+  @keyframes pulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(154,59,50,0.35); } 50% { box-shadow: 0 0 0 10px rgba(154,59,50,0); } }
+  .rec-status { font-size: 0.85rem; color: var(--ink-soft); min-height: 1.2em; }
+  textarea { width: 100%; min-height: 220px; border: 1px solid var(--rule); border-radius: 4px; background: var(--paper-card); color: var(--ink); font-family: 'IBM Plex Sans', sans-serif; font-size: 0.96rem; line-height: 1.55; padding: 0.9rem; resize: vertical; }
+  textarea:focus { outline: 2px solid var(--green); outline-offset: -1px; }
+  input[type="text"] { width: 100%; border: 1px solid var(--rule); border-radius: 4px; background: var(--paper-card); color: var(--ink); font-family: 'IBM Plex Sans', sans-serif; font-size: 0.96rem; padding: 0.65rem 0.8rem; }
+  input[type="text"]:focus { outline: 2px solid var(--green); outline-offset: -1px; }
+  select { border: 1px solid var(--rule); border-radius: 4px; background: var(--paper-card); color: var(--ink); font-family: 'IBM Plex Sans', sans-serif; font-size: 0.9rem; padding: 0.6rem 0.7rem; }
+  .row { display: flex; gap: 0.6rem; align-items: center; flex-wrap: wrap; margin-top: 0.8rem; }
+  .primary-btn { background: var(--green); color: #fff; border: none; padding: 0.7rem 1.3rem; border-radius: 3px; font-size: 0.95rem; cursor: pointer; font-weight: 500; }
+  .primary-btn:hover { background: var(--green-deep); }
+  .primary-btn:disabled { background: var(--rule); color: var(--ink-soft); cursor: not-allowed; }
+  .ghost-btn { background: none; border: 1px solid var(--rule); color: var(--ink-soft); padding: 0.65rem 1rem; border-radius: 3px; cursor: pointer; font-size: 0.9rem; }
+  .ghost-btn:hover { border-color: var(--ink-soft); color: var(--ink); }
+  .ghost-btn.small { padding: 0.4rem 0.7rem; font-size: 0.82rem; }
+  .hint { color: var(--ink-soft); font-size: 0.85rem; margin-top: 0.5rem; line-height: 1.5; }
+  label.field-label { display: block; font-size: 0.82rem; color: var(--ink-soft); margin-bottom: 0.35rem; }
+
+  .notes-title { color: var(--ink-soft); font-size: 0.85rem; margin-bottom: 0.9rem; }
+  .note-item { display: flex; gap: 0.65rem; padding: 0.7rem 0; border-bottom: 1px solid var(--rule); line-height: 1.5; }
+  .note-item:last-child { border-bottom: none; }
+  .note-bullet { color: var(--gold); flex-shrink: 0; margin-top: 0.15rem; }
+  .empty-state { text-align: center; padding: 3rem 1rem; color: var(--ink-soft); }
+  .empty-state .display { color: var(--ink); font-size: 1.15rem; margin-bottom: 0.4rem; }
+
+  .fc-wrap { display: flex; flex-direction: column; align-items: center; }
+  .fc-progress { color: var(--ink-soft); font-size: 0.85rem; margin-bottom: 0.9rem; }
+  .flashcard { width: 100%; max-width: 520px; height: 260px; perspective: 1200px; cursor: pointer; margin-bottom: 1rem; }
+  .flashcard-inner { position: relative; width: 100%; height: 100%; transition: transform 0.45s cubic-bezier(.4,.2,.2,1); transform-style: preserve-3d; }
+  .flashcard.flipped .flashcard-inner { transform: rotateY(180deg); }
+  .fc-face { position: absolute; inset: 0; backface-visibility: hidden; border: 1px solid var(--rule); border-radius: 6px; background: var(--paper-card); display: flex; align-items: center; justify-content: center; text-align: center; padding: 1.6rem; }
+  .fc-front .display { font-size: 1.4rem; }
+  .fc-back { transform: rotateY(180deg); font-size: 0.98rem; color: var(--ink-soft); line-height: 1.5; }
+  .fc-controls { display: flex; gap: 0.6rem; }
+
+  .quiz-progress { color: var(--ink-soft); font-size: 0.85rem; margin-bottom: 0.6rem; }
+  .quiz-q { font-size: 1.1rem; margin-bottom: 1.1rem; line-height: 1.45; }
+  .quiz-opt { display: block; width: 100%; text-align: left; padding: 0.75rem 0.9rem; margin-bottom: 0.55rem; border: 1px solid var(--rule); border-radius: 4px; background: var(--paper-card); color: var(--ink); cursor: pointer; font-size: 0.94rem; }
+  .quiz-opt:hover { border-color: var(--green); }
+  .quiz-opt.correct { border-color: var(--green); background: color-mix(in srgb, var(--green) 12%, var(--paper-card)); }
+  .quiz-opt.incorrect { border-color: var(--wrong); background: color-mix(in srgb, var(--wrong) 12%, var(--paper-card)); }
+  .quiz-opt:disabled { cursor: default; }
+  .quiz-result { text-align: center; padding: 2.5rem 1rem; }
+  .quiz-result .score { font-family: 'Source Serif 4', serif; font-size: 2.6rem; color: var(--green); }
+
+  .sub-tabs { display: flex; gap: 0.4rem; margin-bottom: 1rem; }
+  .sub-tab { padding: 0.5rem 0.9rem; border: 1px solid var(--rule); background: var(--paper-card); color: var(--ink-soft); border-radius: 3px; cursor: pointer; font-size: 0.88rem; }
+  .sub-tab.selected { border-color: var(--green); color: var(--green-deep); background: color-mix(in srgb, var(--green) 8%, var(--paper-card)); }
+
+  .doc-output { border: 1px solid var(--rule); border-radius: 4px; background: var(--paper-card); padding: 1.1rem 1.2rem; line-height: 1.65; white-space: pre-wrap; font-size: 0.96rem; max-height: 55vh; overflow-y: auto; }
+  .doc-output p { margin: 0 0 0.9rem; }
+  .slide-card { border: 1px solid var(--rule); border-radius: 4px; background: var(--paper-card); padding: 1rem 1.1rem; margin-bottom: 0.7rem; }
+  .slide-num { font-size: 0.75rem; color: var(--gold); margin-bottom: 0.2rem; }
+  .slide-title { font-family: 'Source Serif 4', serif; font-size: 1.05rem; margin-bottom: 0.4rem; }
+  .slide-bullets { margin: 0; padding-left: 1.1rem; color: var(--ink-soft); font-size: 0.92rem; line-height: 1.5; }
+
+  .brain-topic-row { display: flex; gap: 0.6rem; margin-bottom: 1.2rem; }
+  .brain-branch { border: 1px solid var(--rule); border-radius: 4px; background: var(--paper-card); padding: 0.9rem 1rem; margin-bottom: 0.7rem; }
+  .brain-branch h3 { font-size: 0.98rem; margin: 0 0 0.3rem; }
+  .brain-spark { color: var(--ink-soft); font-size: 0.85rem; margin-bottom: 0.5rem; font-style: italic; }
+  .brain-branch textarea { min-height: 64px; font-size: 0.9rem; }
+
+  .hw-form { border: 1px solid var(--rule); border-radius: 4px; background: var(--paper-card); padding: 1.1rem; margin-bottom: 1rem; }
+  .hw-step { display: flex; gap: 0.7rem; padding: 0.85rem 0; border-bottom: 1px solid var(--rule); }
+  .hw-step:last-child { border-bottom: none; }
+  .hw-num { flex-shrink: 0; width: 26px; height: 26px; border-radius: 50%; background: var(--green); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 0.8rem; font-family: 'Source Serif 4', serif; }
+  .hw-step h3 { font-size: 0.98rem; margin: 0 0 0.25rem; }
+  .hw-step p { margin: 0; color: var(--ink-soft); font-size: 0.9rem; line-height: 1.5; }
+  .hw-banner { background: color-mix(in srgb, var(--gold) 14%, var(--paper-card)); border: 1px solid var(--gold); border-radius: 4px; padding: 0.7rem 0.9rem; font-size: 0.85rem; color: var(--ink); margin-bottom: 1rem; }
+
+  footer.note { text-align: center; color: var(--ink-soft); font-size: 0.78rem; padding: 1rem; }
+  @media (max-width: 480px) { main { padding: 1.1rem; } .flashcard { height: 220px; } .brain-topic-row { flex-direction: column; } }
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="top">
+    <span class="mark">Okay</span>
+    <span class="tagline">— capture it, then study it, write it, or work through it</span>
+  </header>
+
+  <nav class="tabs">
+    <button class="tab-btn active" data-tab="capture">Capture</button>
+    <button class="tab-btn" data-tab="notes" id="tabNotes" disabled>Notes</button>
+    <button class="tab-btn" data-tab="cards" id="tabCards" disabled>Flashcards</button>
+    <button class="tab-btn" data-tab="quiz" id="tabQuiz" disabled>Quiz</button>
+    <button class="tab-btn" data-tab="write" id="tabWrite" disabled>Write</button>
+    <button class="tab-btn" data-tab="brainstorm">Brainstorm</button>
+    <button class="tab-btn" data-tab="homework">Homework help</button>
+  </nav>
+
+  <main>
+
+    <!-- CAPTURE -->
+    <section class="panel active" id="panel-capture">
+      <div class="capture-modes">
+        <button class="mode-btn selected" data-mode="speak">Speak it</button>
+        <button class="mode-btn" data-mode="paste">Paste text</button>
+      </div>
+
+      <div id="speakMode">
+        <div class="record-box">
+          <button class="rec-btn" id="recBtn" aria-label="Start recording"></button>
+          <div class="rec-status" id="recStatus">Tap to start talking through what you want to remember.</div>
+        </div>
+        <textarea id="liveTranscript" placeholder="Your words will appear here as you talk — you can edit anything before generating your study set." style="min-height:140px;"></textarea>
+      </div>
+
+      <div id="pasteMode" style="display:none;">
+        <textarea id="pasteTranscript" placeholder="Paste lecture notes, an article, or any text you want turned into a study set."></textarea>
+      </div>
+
+      <div class="row">
+        <button class="primary-btn" id="generateBtn" disabled>Generate study set</button>
+        <button class="ghost-btn" id="sampleBtn">Try a sample</button>
+        <button class="ghost-btn" id="clearBtn">Clear</button>
+      </div>
+      <div class="hint">Looking for photo-to-text: scanning handwritten pages isn't reliable in this in-chat version yet — type or paste the text for now and I can revisit it.</div>
+    </section>
+
+    <!-- NOTES -->
+    <section class="panel" id="panel-notes">
+      <div class="notes-title">Key points, pulled from what you gave it</div>
+      <div id="notesList"></div>
+    </section>
+
+    <!-- FLASHCARDS -->
+    <section class="panel" id="panel-cards">
+      <div class="fc-wrap">
+        <div class="fc-progress" id="fcProgress"></div>
+        <div class="flashcard" id="flashcard">
+          <div class="flashcard-inner">
+            <div class="fc-face fc-front"><div class="display" id="fcFront"></div></div>
+            <div class="fc-face fc-back"><div id="fcBack"></div></div>
+          </div>
+        </div>
+        <div class="fc-controls">
+          <button class="ghost-btn" id="fcPrev">← Prev</button>
+          <button class="ghost-btn" id="fcFlip">Flip</button>
+          <button class="ghost-btn" id="fcNext">Next →</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- QUIZ -->
+    <section class="panel" id="panel-quiz">
+      <div id="quizArea"></div>
+    </section>
+
+    <!-- WRITE -->
+    <section class="panel" id="panel-write">
+      <label class="field-label" for="writeTitle">Title / topic</label>
+      <input type="text" id="writeTitle" placeholder="e.g. Photosynthesis">
+      <div class="sub-tabs" style="margin-top:0.9rem;">
+        <button class="sub-tab selected" data-doc="essay">Essay</button>
+        <button class="sub-tab" data-doc="speech">Speech</button>
+        <button class="sub-tab" data-doc="slides">Slide outline</button>
+      </div>
+      <div class="row" style="margin-top:0;">
+        <button class="primary-btn" id="writeGenBtn">Draft it</button>
+        <button class="ghost-btn small" id="writeCopyBtn">Copy</button>
+        <button class="ghost-btn small" id="writePdfBtn">Download PDF</button>
+      </div>
+      <div class="hint">Built from your notes using a fixed essay/speech/slide structure — a solid first draft, not a finished polished piece. Read it over and make it yours.</div>
+      <div id="writeOutput" style="margin-top:1rem;"></div>
+    </section>
+
+    <!-- BRAINSTORM -->
+    <section class="panel" id="panel-brainstorm">
+      <div class="brain-topic-row">
+        <input type="text" id="brainTopic" placeholder="What are you brainstorming? e.g. app ideas for commuters">
+        <button class="primary-btn" id="brainGenBtn">Build worksheet</button>
+      </div>
+      <div class="hint" style="margin-top:-0.6rem;margin-bottom:1rem;">This gives you angles and starter prompts to think from — you fill in the ideas, it won't invent them for you.</div>
+      <div id="brainOutput"></div>
+    </section>
+
+    <!-- HOMEWORK -->
+    <section class="panel" id="panel-homework">
+      <div class="hw-banner">This walks you through a method for solving it — it won't give you the answer. That part's still yours.</div>
+      <div class="hw-form">
+        <label class="field-label" for="hwQuestion">What's the question or topic?</label>
+        <textarea id="hwQuestion" style="min-height:90px;" placeholder="Paste or describe the problem or assignment."></textarea>
+        <div class="row">
+          <div>
+            <label class="field-label" for="hwSubject">Subject</label>
+            <select id="hwSubject">
+              <option value="math">Math</option>
+              <option value="science">Science</option>
+              <option value="writing">Writing / English</option>
+              <option value="history">History / Social studies</option>
+              <option value="general">Something else</option>
+            </select>
+          </div>
+          <button class="primary-btn" id="hwGenBtn" style="align-self:flex-end;">Build my approach</button>
+        </div>
+      </div>
+      <div id="hwOutput"></div>
+    </section>
+
+  </main>
+
+  <footer class="note">Notes, cards, quizzes, and drafts are generated from your own words — worth a skim before you rely on them.</footer>
+</div>
+
+<script>
+(function() {
+  const STOPWORDS = new Set("a,an,the,and,or,but,if,then,so,of,to,in,on,at,for,with,by,from,as,is,are,was,were,be,been,being,this,that,these,those,it,its,i,you,he,she,we,they,them,his,her,our,your,their,not,no,do,does,did,have,has,had,will,would,can,could,should,may,might,must,about,into,than,also,just,very,like,over,after,before,because,while,which,who,whom,what,when,where,why,how,there,here,up,down,out,off,again,more,most,some,such,only,own,same,too,s,t,d,ll,re,ve,m,okay,ok".split(","));
+
+  let mode = 'speak';
+  let notes = [];
+  let flashcards = [];
+  let quiz = [];
+  let fcIndex = 0;
+  let quizIndex = 0;
+  let quizScore = 0;
+  let quizAnswered = false;
+  let docMode = 'essay';
+  let lastDocText = '';
+  let lastSlides = [];
+
+  const $ = (id) => document.getElementById(id);
+
+  // ---- Tabs ----
+  document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      if (btn.disabled) return;
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+      btn.classList.add('active');
+      $('panel-' + btn.dataset.tab).classList.add('active');
+    });
+  });
+
+  // ---- Capture mode toggle ----
+  document.querySelectorAll('.mode-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('selected'));
+      btn.classList.add('selected');
+      mode = btn.dataset.mode;
+      $('speakMode').style.display = mode === 'speak' ? 'block' : 'none';
+      $('pasteMode').style.display = mode === 'paste' ? 'block' : 'none';
+      updateGenerateState();
+    });
+  });
+
+  function currentText() {
+    return mode === 'speak' ? $('liveTranscript').value.trim() : $('pasteTranscript').value.trim();
+  }
+  function updateGenerateState() {
+    $('generateBtn').disabled = currentText().length < 40;
+  }
+  $('liveTranscript').addEventListener('input', updateGenerateState);
+  $('pasteTranscript').addEventListener('input', updateGenerateState);
+
+  // ---- Speech recognition ----
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  let recognition = null;
+  let recognizing = false;
+  let finalTranscript = '';
+
+  if (SR) {
+    recognition = new SR();
+    recognition.continuous = true;
+    recognition.interimResults = true;
+    recognition.lang = 'en-US';
+    recognition.onresult = (event) => {
+      let interim = '';
+      for (let i = event.resultIndex; i < event.results.length; i++) {
+        const t = event.results[i][0].transcript;
+        if (event.results[i].isFinal) finalTranscript += t + ' ';
+        else interim += t;
+      }
+      $('liveTranscript').value = (finalTranscript + interim).trim();
+      updateGenerateState();
+    };
+    recognition.onerror = (e) => {
+      $('recStatus').textContent = e.error === 'not-allowed'
+        ? 'Microphone access was blocked — allow it in your browser to record.'
+        : 'Recording stopped (' + e.error + '). You can keep typing instead.';
+      stopRecording();
+    };
+    recognition.onend = () => { if (recognizing) stopRecording(); };
+  } else {
+    $('recStatus').textContent = "Live speech capture isn't supported in this browser — type or paste your notes instead.";
+    $('recBtn').disabled = true;
+  }
+
+  function startRecording() {
+    if (!recognition) return;
+    finalTranscript = $('liveTranscript').value ? $('liveTranscript').value + ' ' : '';
+    recognizing = true;
+    $('recBtn').classList.add('recording');
+    $('recStatus').textContent = 'Listening — tap again to stop.';
+    try { recognition.start(); } catch (e) {}
+  }
+  function stopRecording() {
+    recognizing = false;
+    $('recBtn').classList.remove('recording');
+    $('recStatus').textContent = 'Stopped. Edit the text below, or tap to keep going.';
+    try { recognition.stop(); } catch (e) {}
+  }
+  $('recBtn').addEventListener('click', () => { if (recognizing) stopRecording(); else startRecording(); });
+
+  // ---- Sample / clear ----
+  const SAMPLE = "Photosynthesis is the process plants use to convert light energy into chemical energy stored in glucose. It happens mainly in the chloroplasts, specifically using a pigment called chlorophyll that absorbs light, mostly in the red and blue wavelengths, and reflects green, which is why plants look green. The process has two main stages. The first stage is the light-dependent reactions, which take place in the thylakoid membrane. Here, light energy splits water molecules into oxygen, protons, and electrons, and this produces ATP and NADPH, which are energy carriers. Oxygen is released as a byproduct through the stomata. The second stage is called the Calvin cycle, and it happens in the stroma of the chloroplast. The Calvin cycle uses the ATP and NADPH from the first stage to convert carbon dioxide into glucose through a series of enzyme-driven reactions, the most important enzyme being RuBisCO. Photosynthesis is essential because it is the primary source of oxygen in Earth's atmosphere and it forms the base of nearly every food chain, since plants are producers that convert solar energy into a form other organisms can eat. Factors that affect the rate of photosynthesis include light intensity, carbon dioxide concentration, and temperature, since the enzymes involved work best within a specific temperature range.";
+  $('sampleBtn').addEventListener('click', () => {
+    document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('selected'));
+    document.querySelector('.mode-btn[data-mode="paste"]').classList.add('selected');
+    mode = 'paste';
+    $('speakMode').style.display = 'none';
+    $('pasteMode').style.display = 'block';
+    $('pasteTranscript').value = SAMPLE;
+    updateGenerateState();
+  });
+  $('clearBtn').addEventListener('click', () => {
+    $('liveTranscript').value = '';
+    $('pasteTranscript').value = '';
+    finalTranscript = '';
+    updateGenerateState();
+  });
+
+  // ---- Text processing: extractive notes, flashcards, quiz ----
+  function splitSentences(text) {
+    return text.replace(/\s+/g, ' ').trim()
+      .split(/(?<=[.!?])\s+(?=[A-Z0-9])/)
+      .map(s => s.trim())
+      .filter(s => s.length > 12);
+  }
+  function wordFreq(sentences) {
+    const freq = {};
+    sentences.forEach(s => {
+      s.toLowerCase().match(/[a-z][a-z'-]{2,}/g)?.forEach(w => {
+        if (!STOPWORDS.has(w)) freq[w] = (freq[w] || 0) + 1;
+      });
+    });
+    return freq;
+  }
+  function buildNotes(sentences, freq) {
+    const scored = sentences.map((s, i) => {
+      const words = s.toLowerCase().match(/[a-z][a-z'-]{2,}/g) || [];
+      const score = words.reduce((sum, w) => sum + (freq[w] || 0), 0) / Math.sqrt(words.length + 1);
+      return { s, i, score };
+    });
+    const keepCount = Math.max(3, Math.min(10, Math.round(sentences.length * 0.55)));
+    const top = scored.sort((a, b) => b.score - a.score).slice(0, keepCount);
+    return top.sort((a, b) => a.i - b.i).map(x => x.s);
+  }
+  function buildFlashcards(sentences, freq) {
+    const capTerms = {};
+    sentences.forEach(s => {
+      (s.match(/\b[A-Z][a-zA-Z'-]{3,}\b/g) || []).forEach(w => {
+        const lw = w.toLowerCase();
+        if (!STOPWORDS.has(lw)) capTerms[lw] = (capTerms[lw] || 0) + 1;
+      });
+    });
+    const merged = {};
+    Object.keys(freq).forEach(w => { if (w.length > 4) merged[w] = freq[w]; });
+    Object.keys(capTerms).forEach(w => { merged[w] = (merged[w] || 0) + capTerms[w] + 1; });
+    const ranked = Object.entries(merged).sort((a, b) => b[1] - a[1]).slice(0, 12);
+    const cards = [];
+    const usedSentences = new Set();
+    ranked.forEach(([term]) => {
+      let best = null;
+      sentences.forEach((s, i) => {
+        if (s.toLowerCase().includes(term) && !usedSentences.has(i)) {
+          if (!best || s.length < best.s.length) best = { s, i };
+        }
+      });
+      if (best) {
+        usedSentences.add(best.i);
+        cards.push({ term: term.charAt(0).toUpperCase() + term.slice(1), context: best.s });
+      }
+    });
+    return cards.slice(0, 10);
+  }
+  function buildQuiz(cards) {
+    if (cards.length < 3) return [];
+    return cards.map((card, idx) => {
+      const pool = cards.filter((_, i) => i !== idx).map(c => c.term);
+      const distractors = shuffle(pool).slice(0, Math.min(3, pool.length));
+      return { question: card.context, answer: card.term, options: shuffle([card.term, ...distractors]) };
+    });
+  }
+  function shuffle(arr) {
+    const a = arr.slice();
+    for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; }
+    return a;
+  }
+
+  $('generateBtn').addEventListener('click', () => {
+    const text = currentText();
+    if (text.length < 40) return;
+    const sentences = splitSentences(text);
+    const freq = wordFreq(sentences);
+    notes = buildNotes(sentences, freq);
+    flashcards = buildFlashcards(sentences, freq);
+    quiz = buildQuiz(flashcards);
+
+    renderNotes();
+    renderFlashcards();
+    renderQuiz();
+    prefillWriteTitle(freq);
+
+    $('tabNotes').disabled = false;
+    $('tabCards').disabled = flashcards.length === 0;
+    $('tabQuiz').disabled = quiz.length === 0;
+    $('tabWrite').disabled = notes.length === 0;
+
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+    document.querySelector('.tab-btn[data-tab="notes"]').classList.add('active');
+    $('panel-notes').classList.add('active');
+  });
+
+  function prefillWriteTitle(freq) {
+    if ($('writeTitle').value.trim()) return;
+    const top = Object.entries(freq).sort((a, b) => b[1] - a[1])[0];
+    if (top) $('writeTitle').value = top[0].charAt(0).toUpperCase() + top[0].slice(1);
+  }
+
+  // ---- Render: notes ----
+  function renderNotes() {
+    const list = $('notesList');
+    list.innerHTML = '';
+    if (notes.length === 0) {
+      list.innerHTML = '<div class="empty-state"><div class="display">Nothing to show yet</div>Generate a study set from the Capture tab first.</div>';
+      return;
+    }
+    notes.forEach(n => {
+      const div = document.createElement('div');
+      div.className = 'note-item';
+      div.innerHTML = '<span class="note-bullet">—</span><span>' + escapeHtml(n) + '</span>';
+      list.appendChild(div);
+    });
+  }
+
+  // ---- Render: flashcards ----
+  function renderFlashcards() { fcIndex = 0; updateFlashcard(); }
+  function updateFlashcard() {
+    const card = document.getElementById('flashcard');
+    if (flashcards.length === 0) {
+      $('fcProgress').textContent = ''; $('fcFront').textContent = 'No flashcards yet'; $('fcBack').textContent = '';
+      return;
+    }
+    card.classList.remove('flipped');
+    const c = flashcards[fcIndex];
+    $('fcFront').textContent = c.term;
+    $('fcBack').textContent = c.context;
+    $('fcProgress').textContent = (fcIndex + 1) + ' of ' + flashcards.length;
+  }
+  $('flashcard').addEventListener('click', () => $('flashcard').classList.toggle('flipped'));
+  $('fcFlip').addEventListener('click', () => $('flashcard').classList.toggle('flipped'));
+  $('fcPrev').addEventListener('click', () => { if (!flashcards.length) return; fcIndex = (fcIndex - 1 + flashcards.length) % flashcards.length; updateFlashcard(); });
+  $('fcNext').addEventListener('click', () => { if (!flashcards.length) return; fcIndex = (fcIndex + 1) % flashcards.length; updateFlashcard(); });
+
+  // ---- Render: quiz ----
+  function renderQuiz() { quizIndex = 0; quizScore = 0; quizAnswered = false; showQuizQuestion(); }
+  function showQuizQuestion() {
+    const area = $('quizArea');
+    if (quiz.length === 0) {
+      area.innerHTML = '<div class="empty-state"><div class="display">No quiz yet</div>Generate a study set with a bit more text first.</div>';
+      return;
+    }
+    if (quizIndex >= quiz.length) {
+      area.innerHTML = '<div class="quiz-result"><div class="score">' + quizScore + ' / ' + quiz.length + '</div>' +
+        '<div style="margin-top:0.6rem;color:var(--ink-soft);">' + resultLine(quizScore, quiz.length) + '</div>' +
+        '<div class="row" style="justify-content:center;margin-top:1.2rem;"><button class="primary-btn" id="quizRestart">Try again</button></div></div>';
+      $('quizRestart').addEventListener('click', renderQuiz);
+      return;
+    }
+    quizAnswered = false;
+    const q = quiz[quizIndex];
+    area.innerHTML = '<div class="quiz-progress">Question ' + (quizIndex + 1) + ' of ' + quiz.length + '</div>' +
+      '<div class="quiz-q">' + escapeHtml(q.question) + '</div><div id="quizOpts"></div>';
+    const opts = $('quizOpts');
+    q.options.forEach(opt => {
+      const btn = document.createElement('button');
+      btn.className = 'quiz-opt';
+      btn.textContent = opt;
+      btn.addEventListener('click', () => selectAnswer(opt, btn));
+      opts.appendChild(btn);
+    });
+  }
+  function selectAnswer(opt, btn) {
+    if (quizAnswered) return;
+    quizAnswered = true;
+    const q = quiz[quizIndex];
+    if (opt === q.answer) quizScore++;
+    document.querySelectorAll('.quiz-opt').forEach(b => {
+      b.disabled = true;
+      if (b.textContent === q.answer) b.classList.add('correct');
+      else if (b === btn) b.classList.add('incorrect');
+    });
+    setTimeout(() => { quizIndex++; showQuizQuestion(); }, 900);
+  }
+  function resultLine(score, total) {
+    const pct = score / total;
+    if (pct === 1) return 'Clean sweep.';
+    if (pct >= 0.7) return 'Solid — worth one more pass on the ones you missed.';
+    if (pct >= 0.4) return 'Getting there — review the flashcards and try again.';
+    return 'Back to the notes for another read-through.';
+  }
+
+  function escapeHtml(s) { const div = document.createElement('div'); div.textContent = s; return div.innerHTML; }
+
+  // ---- WRITE ----
+  document.querySelectorAll('.sub-tab').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.sub-tab').forEach(b => b.classList.remove('selected'));
+      btn.classList.add('selected');
+      docMode = btn.dataset.doc;
+    });
+  });
+
+  function chunk(arr, size) {
+    const out = [];
+    for (let i = 0; i < arr.length; i += size) out.push(arr.slice(i, i + size));
+    return out;
+  }
+
+  function buildEssay(title, pts) {
+    const intro = 'This piece looks at ' + (title || 'the topic') + '. ' + pts[0] +
+      (pts.length > 1 ? ' Here\u2019s a closer look at what that involves.' : '');
+    const body = chunk(pts.slice(1, pts.length - (pts.length > 2 ? 1 : 0)), 2)
+      .map(group => group.join(' ')).filter(Boolean);
+    const conclusion = pts.length > 2
+      ? 'Taken together, these points show why ' + (title || 'this topic') + ' matters: ' + pts[pts.length - 1]
+      : '';
+    const paras = [intro, ...body];
+    if (conclusion) paras.push(conclusion);
+    return paras;
+  }
+
+  function buildSpeech(title, pts) {
+    const openers = ["Let's start with the big picture.", "Here's where it gets interesting.", "This is the part worth remembering.", "Now, why does this matter?"];
+    const paras = [];
+    paras.push('Today I want to talk about ' + (title || 'this topic') + '. ' + pts[0]);
+    pts.slice(1).forEach((p, i) => {
+      const opener = openers[i % openers.length];
+      paras.push((i === pts.length - 2 ? "To wrap up: " : opener + ' ') + p);
+    });
+    return paras;
+  }
+
+  function buildSlides(title, pts) {
+    const groups = chunk(pts, 2);
+    return [{ heading: title || 'Overview', bullets: ['A quick look at the key points'] },
+      ...groups.map((g, i) => ({ heading: slideHeading(g[0]), bullets: g }))];
+  }
+  function slideHeading(sentence) {
+    const words = (sentence.match(/[A-Za-z][A-Za-z'-]{3,}/g) || []).filter(w => !STOPWORDS.has(w.toLowerCase()));
+    return words.slice(0, 3).join(' ') || 'Key point';
+  }
+
+  function renderWriteOutput() {
+    const out = $('writeOutput');
+    if (notes.length === 0) {
+      out.innerHTML = '<div class="empty-state"><div class="display">No content yet</div>Generate a study set from the Capture tab first.</div>';
+      return;
+    }
+    const title = $('writeTitle').value.trim();
+    if (docMode === 'slides') {
+      lastSlides = buildSlides(title, notes);
+      lastDocText = lastSlides.map((s, i) => 'Slide ' + (i + 1) + ': ' + s.heading + '\n' + s.bullets.map(b => '- ' + b).join('\n')).join('\n\n');
+      out.innerHTML = lastSlides.map((s, i) =>
+        '<div class="slide-card"><div class="slide-num">Slide ' + (i + 1) + '</div>' +
+        '<div class="slide-title">' + escapeHtml(s.heading) + '</div>' +
+        '<ul class="slide-bullets">' + s.bullets.map(b => '<li>' + escapeHtml(b) + '</li>').join('') + '</ul></div>'
+      ).join('');
+    } else {
+      const paras = docMode === 'essay' ? buildEssay(title, notes) : buildSpeech(title, notes);
+      lastDocText = (title ? title + '\n\n' : '') + paras.join('\n\n');
+      out.innerHTML = '<div class="doc-output">' + paras.map(p => '<p>' + escapeHtml(p) + '</p>').join('') + '</div>';
+    }
+  }
+  $('writeGenBtn').addEventListener('click', renderWriteOutput);
+
+  $('writeCopyBtn').addEventListener('click', () => {
+    if (!lastDocText) { renderWriteOutput(); }
+    navigator.clipboard?.writeText(lastDocText).then(() => flashHint('writeCopyBtn', 'Copied')).catch(() => {});
+  });
+  $('writePdfBtn').addEventListener('click', () => {
+    if (!lastDocText) renderWriteOutput();
+    if (!lastDocText) return;
+    try {
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF();
+      const title = $('writeTitle').value.trim() || 'Okay document';
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(16);
+      doc.text(title, 15, 18);
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(11);
+      const body = docMode === 'slides' ? lastDocText : lastDocText.replace(title + '\n\n', '');
+      const lines = doc.splitTextToSize(body, 180);
+      doc.text(lines, 15, 30);
+      doc.save((title || 'okay-document').replace(/\s+/g, '-').toLowerCase() + '.pdf');
+    } catch (e) {
+      flashHint('writePdfBtn', 'PDF unavailable — try Copy instead');
+    }
+  });
+  function flashHint(btnId, msg) {
+    const btn = $(btnId);
+    const original = btn.textContent;
+    btn.textContent = msg;
+    setTimeout(() => { btn.textContent = original; }, 1400);
+  }
+
+  // ---- BRAINSTORM ----
+  const BRANCH_PROMPTS = [
+    { title: 'Connects to', spark: 'What else does this touch, overlap with, or depend on?' },
+    { title: 'Similar to', spark: 'What existing thing is this closest to — and what would you keep from it?' },
+    { title: 'Opposite of', spark: 'What would the reverse or opposite version look like?' },
+    { title: 'Remove a constraint', spark: 'If budget, time, or rules weren\u2019t a factor, what changes?' },
+    { title: 'Who cares, and why', spark: 'Who specifically would want this, and what are they trying to solve?' },
+    { title: 'Smallest version', spark: 'What\u2019s the tiniest version of this you could try this week?' },
+    { title: 'Biggest version', spark: 'If this worked perfectly and scaled up, what would it become?' }
+  ];
+  const TRANSFORM_VERBS = ['combine', 'automate', 'gamify', 'personalize', 'simplify', 'localize', 'subscription-ify', 'make social', 'make offline-friendly', 'flip the order of'];
+
+  function renderBrainstorm() {
+    const topic = $('brainTopic').value.trim();
+    const out = $('brainOutput');
+    if (!topic) { out.innerHTML = '<div class="empty-state"><div class="display">Add a topic above</div>Type what you\u2019re brainstorming, then build the worksheet.</div>'; return; }
+    const shuffled = shuffle(TRANSFORM_VERBS);
+    out.innerHTML = BRANCH_PROMPTS.map((b, i) => {
+      const verb = shuffled[i % shuffled.length];
+      const spark = i < 3 ? b.spark : 'Spark: what if you ' + verb + ' "' + topic + '"?';
+      return '<div class="brain-branch"><h3>' + escapeHtml(b.title) + '</h3>' +
+        '<div class="brain-spark">' + escapeHtml(spark) + '</div>' +
+        '<textarea placeholder="Jot ideas here..."></textarea></div>';
+    }).join('');
+  }
+  $('brainGenBtn').addEventListener('click', renderBrainstorm);
+  $('brainTopic').addEventListener('keydown', (e) => { if (e.key === 'Enter') renderBrainstorm(); });
+
+  // ---- HOMEWORK HELP ----
+  const HW_STEPS = {
+    math: [
+      ['Understand what\u2019s being asked', 'Read it twice. Underline the actual question — not the setup, the thing you need to find.'],
+      ['List what you\u2019re given', 'Write down every number, unit, and condition. Note what\u2019s unknown.'],
+      ['Pick your method', 'What formula, rule, or approach fits this type of problem? If unsure, think about what topic this came from in class.'],
+      ['Work it step by step', 'Show each step on paper. Don\u2019t skip ahead — errors hide in the skipped steps.'],
+      ['Check your answer', 'Plug it back into the original problem. Does the size and sign of the answer make sense?']
+    ],
+    science: [
+      ['Restate the question', 'In your own words, what is it actually asking you to explain or find?'],
+      ['Recall the relevant concept', 'What topic does this connect to? Jot the key terms or relationships involved.'],
+      ['Predict before you calculate', 'What would you expect the answer/outcome to roughly look like, and why?'],
+      ['Work through the process', 'Apply the concept or formula step by step, showing your reasoning.'],
+      ['Sanity-check it', 'Do the units make sense? Is the magnitude realistic? Does it match your prediction?']
+    ],
+    writing: [
+      ['Clarify the prompt', 'What exactly is being asked — analyze, argue, describe, compare?'],
+      ['Find your position', 'What\u2019s your thesis or main point, in one sentence?'],
+      ['Outline the structure', 'Sketch intro, 2\u20134 body points, and conclusion before writing full sentences.'],
+      ['Draft it', 'Write it through once without stopping to edit — get the ideas down.'],
+      ['Revise for clarity', 'Reread for whether each paragraph proves your thesis, and tighten the wording.']
+    ],
+    history: [
+      ['Pin down the who/when', 'What time period, people, or event is this actually about?'],
+      ['Gather context', 'What caused this, and what else was happening around it?'],
+      ['Build your argument', 'What\u2019s your answer to the question, stated as a clear claim?'],
+      ['Back it with evidence', 'What specific facts, dates, or examples support your claim?'],
+      ['Address the other side', 'What\u2019s a reasonable counterpoint, and how would you respond to it?']
+    ],
+    general: [
+      ['Break it into sub-questions', 'What smaller questions make up this bigger one?'],
+      ['Gather what you know', 'Recall or look up what\u2019s relevant to each sub-question.'],
+      ['Draft an answer', 'Put together a first attempt, even a rough one.'],
+      ['Check it against the question', 'Reread the original prompt — does your answer actually address it?']
+    ]
+  };
+
+  function renderHomework() {
+    const q = $('hwQuestion').value.trim();
+    const subject = $('hwSubject').value;
+    const out = $('hwOutput');
+    if (!q) { out.innerHTML = '<div class="empty-state"><div class="display">Add your question above</div>Paste or describe it, pick a subject, then build your approach.</div>'; return; }
+    const steps = HW_STEPS[subject] || HW_STEPS.general;
+    out.innerHTML = '<div class="doc-output" style="margin-bottom:1rem;font-style:italic;color:var(--ink-soft);">' + escapeHtml(q) + '</div>' +
+      steps.map((s, i) => '<div class="hw-step"><div class="hw-num">' + (i + 1) + '</div><div><h3>' + escapeHtml(s[0]) + '</h3><p>' + escapeHtml(s[1]) + '</p></div></div>').join('');
+  }
+  $('hwGenBtn').addEventListener('click', renderHomework);
+
+})();
+</script>
+</body>
+</html>
